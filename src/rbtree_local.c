@@ -24,9 +24,9 @@ void delete_all_node(rbtree* t, node_t* root) {
 void delete_rbtree(rbtree *t) {
   // TODO: reclaim the tree nodes's memory
   delete_all_node(t, t->root);
-  free(t->nil);
   free(t);
 }
+
 
 node_t* create_node(rbtree* tree, const key_t key) {
   node_t* new_node = (node_t*)malloc(sizeof(node_t));
@@ -109,6 +109,14 @@ void restructure(rbtree* t, node_t* node) {
 
   // node의 부모가 red면 계속 재구조화
   while (temp->parent->color == red) {
+    // 부모가 nil노드면 root다.
+    // 블랙으로 바꾸고 리턴
+    // if (temp->parent == t->nil) {
+    //   t->root = temp;
+    //   t->root->color = black;
+    //   break;
+    // }
+
     node_t* granpa = temp->parent->parent;
 
     // 엉클도 빨간색이면 조상이랑 교체
@@ -164,7 +172,7 @@ void restructure(rbtree* t, node_t* node) {
 node_t *rbtree_insert(rbtree *t, const key_t key) {
   // TODO: implement insert
 
-  // tree의 root노드가 NIL이면 새 노드가 root노드가 된다.
+  // tree의 root노드가 NULL이면 새 노드가 root노드가 된다.
   if (t->root == t->nil) {
     t->root = create_node(t, key);
     t->root->color = black;
@@ -180,20 +188,23 @@ node_t *rbtree_insert(rbtree *t, const key_t key) {
   
   while (cur != t->nil) {
     // 크거나 같거나 작나로 판단.
-    // cur노드보다 같거나 클 때,
+    // cur노드보다 크면
     if (cur->key <= key) {
-      // 오른쪽 자식 확인하러 간다.
       cur_parent = cur;
       pos = 1;
       cur = cur->right;
     }
 
-    // cur노드보다 작을 때,
+    // cur노드보다 작거나
     else if (cur->key > key) {
-      // 왼쪽 자식 확인하러 간다.
       cur_parent = cur;
       pos = 0;
       cur = cur->left;
+    }
+
+    // cur노드와 같으면 중단.
+    else {
+      break;
     }
   }
 
@@ -216,7 +227,7 @@ node_t *rbtree_insert(rbtree *t, const key_t key) {
 
   // 부모노드가 빨간색일 때만 확인해준다.
   if (new_node->parent->color == red) {
-    // 이제 재조정시간, new_node 포인터만 넣어주면 될듯
+    // // 이제 재조정시간, new_node 포인터만 넣어주면 될듯
     restructure(t, new_node);
   }
 
@@ -231,7 +242,7 @@ node_t *rbtree_find(const rbtree *t, const key_t key) {
   // 현재 노드를 담는 포인터변수 정의 
   node_t* cur_node = t->root;
   
-  // cur_node가 NIL이 아닐 때까지 반복
+  // cur_node가 NULL이 아닐 때까지 반복
   while (cur_node != t->nil) {
     // cur노드보다 작으면 왼쪽 자식으로 포인터 변경
     if (cur_node->key > key) {
@@ -239,7 +250,7 @@ node_t *rbtree_find(const rbtree *t, const key_t key) {
     }
 
     // cur노드보다 크면 오른쪽 자식으로 포인터 변경
-    else if (cur_node->key < key) {
+    else if (cur_node->key <= key) {
       cur_node = cur_node->right;
     }
 
@@ -290,6 +301,14 @@ node_t *rbtree_max(const rbtree *t) {
   return cur;
 }
 
+// 노드의 포인터 p를 입력받아서 메모리 해제하는 함수.
+// BST 기본
+
+// doubly black을 처리하는 함수
+// 케이스별로 나눠서 푼다.
+
+// node는 extra black이 붙어 있는 노드다.
+
 
 void rb_transplant(rbtree* t, node_t* from_node, node_t* to_node) {
   // 대체될 노드가 루트면
@@ -317,7 +336,7 @@ void rb_transplant(rbtree* t, node_t* from_node, node_t* to_node) {
 // 그리고 fixup의 인자에 넣을 노드로, (타겟, 석세서, extra black이 붙을 노드) 이 셋중에 뭘 넣어야 할지 어려웠다.
 // 답은 extrablack이 붙을 노드였고, 상식적으로 맞는데 쉽게 결정하지 못했던 이유는 NIL에 extra black이 붙을 경우 부모를 찾을 수 없다는 생각 때문이었다.
 void rb_delete_fixup(rbtree* t, node_t* fix_node) {
-  // 위반 체크할 노드(fix_node)가 루트면 그냥 블랙으로 바꾸면 되고, 빨간색이면 red and black이 됐다는 소리다.
+  // 위반 체크할 노드가 루트면 그냥 블랙으로 바꾸면 되고, 빨간색이면 red and black이 됐다는 소리다.
   // flx_node.color == black이면 현재 doubly-black이라는 소리
   // 루트도 아니고 빨간색도 아니면 while 수행
   while (fix_node != t->root && fix_node->color == black) {
@@ -342,7 +361,7 @@ void rb_delete_fixup(rbtree* t, node_t* fix_node) {
         // 나와 형제의 검은색 하나를 지우고 부모에게 주는건데 코드로 구현하면 이렇게 하면 된다.
         // 나에서 extra black 하나 빼도 블랙이고, brother는 레드가 된다.
         // 이후 다시 확인해야 할 노드는 나의 부모가 된다.
-        // 그냥 이렇게만 해줘도 되는 이유는, 만약 부모가 레드였다면 red and black이라서 부모를 블랙으로 바꿔주면 끝이라서 while문을 빠져나간 후, fix_node = black으로 해주고 끝.
+        // 그냥 이렇게만 해줘도 되는 이유는, 만약 부모가 레드였다면 red and black이라서 부모를 블랙으로 바꿔주면 끝이고, 따라서 while문을 빠져나간 후, fix_node = black으로 해주고 끝.
         // 부모가 블랙이면 다시 case1부터 수행. 
         brother->color = red;
         fix_node = fix_node->parent;
@@ -462,7 +481,7 @@ int rbtree_erase(rbtree *t, node_t *p) {
       // target노드의 오른쪽 자식의 부모를 석으로 한다.
       succ->right->parent = succ;
     }
- 
+
     // 그냥 타겟의 오른쪽 자식이 석일 때
     else {
       // 석의 오른쪽 자식의 부모를 타겟에서 석으로 바꾼다.
@@ -489,10 +508,8 @@ int rbtree_erase(rbtree *t, node_t *p) {
   if (deleted_color == black) {
     rb_delete_fixup(t, fix_node);
   }
-  free(p);
   return 1;
 }
-
 
 void inorder(const rbtree* t, node_t* root, key_t* arr, const size_t n, int* cnts) {
   if (*cnts == n) {
@@ -520,4 +537,34 @@ int rbtree_to_array(const rbtree *t, key_t *arr, const size_t n) {
   inorder(t, t->root, arr, n, &cnts);
   
   return 0;
+}
+
+
+void inorder_print(rbtree* t, node_t* root) {
+  if (root != t->nil) {
+    inorder_print(t, root->left);
+    printf("%d %d\n", root->key, root->color);
+    inorder_print(t, root->right);
+  }
+}
+
+int main(void) {
+    rbtree *t = new_rbtree();
+    //10, 5, 8, 34, 67, 23, 156, 24, 2, 12, 24, 36, 990, 25};
+    rbtree_insert(t, 10);
+    rbtree_insert(t, 5);
+    rbtree_insert(t, 8);
+    rbtree_insert(t, 34);
+    rbtree_insert(t, 67);
+    rbtree_insert(t, 23);
+    rbtree_insert(t, 156);
+    rbtree_insert(t, 24);
+    rbtree_insert(t, 2);
+    rbtree_insert(t, 12);
+    rbtree_insert(t, 24);
+    rbtree_insert(t, 36);
+    rbtree_insert(t, 990);
+    rbtree_insert(t, 25);
+    inorder_print(t, t->root);
+    delete_all_node(t, t->root);
 }
